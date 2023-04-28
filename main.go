@@ -1,14 +1,14 @@
 package main
 
 import (
+	"github.com/NaufalFarros/miniproject_alterra_golang/routes"
 	"github.com/gofiber/fiber/v2"
-	"github.com/NaufalFarros/miniproject_alterra_golang/Routes"
 )
 
 func main() {
 	app := fiber.New()
 
-	Routes.routes(app)
-
+	routes.AdminRoutes(app)
+	routes.UsersRoutes(app)
 	app.Listen(":3000")
 }
