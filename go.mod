@@ -1,4 +1,4 @@
-module github.com/NaufalFarros/miniproject_alterra_golang.git
+module github.com/NaufalFarros/miniproject_alterra_golang
 
 go 1.20
 
