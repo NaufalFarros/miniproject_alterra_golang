@@ -1,6 +1,9 @@
 package routes
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/NaufalFarros/miniproject_alterra_golang/controllers"
 	"github.com/NaufalFarros/miniproject_alterra_golang/middleware"
 	"github.com/gofiber/fiber/v2"
@@ -20,5 +23,20 @@ func AdminRoutes(app *fiber.App) {
 	auth.Put("/category/:id", controllers.UpdateCategory)
 	auth.Delete("/category/:id", controllers.DeleteCategory)
 
+	auth.Get("/items", controllers.GetItems)
 	auth.Post("/item", controllers.CreateItem)
+	auth.Get("/item", controllers.GetItem)
+
+	auth.Get("/images/:imageName", func(c *fiber.Ctx) error {
+		imageName := c.Params("imageName")
+		imagePath := "./image/" + imageName
+		fmt.Println("Ianmge Path :", imagePath)
+		if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"message": "Image not found",
+			})
+		}
+		return c.SendFile(imagePath)
+	})
+
 }

@@ -1,6 +1,9 @@
 package helper
 
 import (
+	"math/rand"
+	"path/filepath"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
@@ -28,4 +31,17 @@ func ValidationStruct(c *fiber.Ctx, model interface{}) []*ErrorResponse {
 		return errors
 	}
 	return nil
+}
+
+func RandomString(n int) string {
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
+
+func GenerateFileName(fileName string) string {
+	return "item-" + RandomString(6) + filepath.Ext(fileName)
 }

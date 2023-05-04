@@ -152,3 +152,25 @@ func GetUsers(c *fiber.Ctx) error {
 		"data":    Users,
 	})
 }
+
+func GetUser(c *fiber.Ctx) error {
+	var Users []models.Admin
+
+	result := database.Database.Db.Where("id = ?", c.Params("id")).First(&Users)
+
+	if result.Error != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "User Not Found",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Success",
+		"data":    Users,
+	})
+
+}
+
+
+
+
