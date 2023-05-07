@@ -14,20 +14,22 @@ func AdminRoutes(app *fiber.App) {
 	app.Post("/register", controllers.Register)
 	app.Post("/logout", controllers.Logout)
 
-	auth := app.Group("/admin")
-	auth.Use(middleware.JWTAuthMiddleware)
-	auth.Get("/profile", controllers.GetUsers)
-	auth.Post("/category", controllers.CreateCategory)
-	auth.Get("/category", controllers.GetCategories)
-	auth.Get("/category/:id", controllers.GetCategory)
-	auth.Put("/category/:id", controllers.UpdateCategory)
-	auth.Delete("/category/:id", controllers.DeleteCategory)
+	authAdmin := app.Group("/admin")
+	authAdmin.Use(middleware.AuthorizeAdmin)
+	authAdmin.Get("/profile", controllers.GetUsers)
+	authAdmin.Post("/category", controllers.CreateCategory)
+	authAdmin.Get("/category", controllers.GetCategories)
+	authAdmin.Get("/category/:id", controllers.GetCategory)
+	authAdmin.Put("/category/:id", controllers.UpdateCategory)
+	authAdmin.Delete("/category/:id", controllers.DeleteCategory)
 
-	auth.Get("/items", controllers.GetItems)
-	auth.Post("/item", controllers.CreateItem)
-	auth.Get("/item", controllers.GetItem)
+	authAdmin.Get("/items", controllers.GetItems)
+	authAdmin.Post("/item", controllers.CreateItem)
+	authAdmin.Get("/item", controllers.GetItem)
+	authAdmin.Put("/item", controllers.UpdateItem)
+	authAdmin.Delete("/item/:id", controllers.DeleteItem)
 
-	auth.Get("/images/:imageName", func(c *fiber.Ctx) error {
+	authAdmin.Get("/images/:imageName", func(c *fiber.Ctx) error {
 		imageName := c.Params("imageName")
 		imagePath := "./image/" + imageName
 		fmt.Println("Ianmge Path :", imagePath)
@@ -39,4 +41,10 @@ func AdminRoutes(app *fiber.App) {
 		return c.SendFile(imagePath)
 	})
 
+	authUsers := app.Group("/users")
+	authUsers.Use(middleware.AuthorizeUser)
+	authUsers.Post("/booking", controllers.CreateBookings)
+	authUsers.Post("/booking-items", controllers.CreateBookingsItems)
+	authUsers.Post("/booking-items-min", controllers.CreateBookingsItemsMin)
+	authUsers.Post("/booking-items-submit", controllers.SubmitOrders)
 }

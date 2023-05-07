@@ -19,30 +19,35 @@ import (
 
 var JWT_KEY = []byte(os.Getenv("JWT_KEY"))
 
-type JTWClaim struct {
-	Username string `json:"username"`
+type JWTClaim struct {
+	Email  string `json:"email"`
+	Roles  string `json:"roles"`
+	UserID int    `json:"user_id"`
 	jwt.RegisteredClaims
 }
 
 // CreateToken is a function to create token
-func CreateToken(username string) (string, error) {
+func CreateToken(email string, roles string, userID int) (string, error) {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("Error loading .env file: %v", err)
 	}
-	// exp := jwt.NumericDate(time.Now().Add(time.Hour * 24).Unix())
-	claims := &jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
-		Issuer:    "alterra",
+	claims := &JWTClaim{
+		Email:  email,
+		Roles:  roles,
+		UserID: userID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+			Issuer:    "alterra",
+		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(JWT_KEY)
 }
 
-func VerifyToken(tokenString string) (*JTWClaim, error) {
+func VerifyToken(tokenString string) (*JWTClaim, error) {
 	// Initialize a new instance of `Claims`
-	claims := &JTWClaim{}
-
+	claims := &JWTClaim{}
 	// Parse the JWT token
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		// Make sure that the token's signing method is HMAC
@@ -61,7 +66,6 @@ func VerifyToken(tokenString string) (*JTWClaim, error) {
 	if !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}
-
 	// Return the claims
 	return claims, nil
 }

@@ -35,7 +35,7 @@ func DBConnect() (*gorm.DB, error) {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	db.Logger = logger.Default.LogMode(logger.Info)
-	db.AutoMigrate(&models.Admin{}, &models.Items{}, &models.Category{}, &models.Orders{})
+	db.AutoMigrate(&models.User{}, &models.Items{}, &models.Category{}, &models.Orders{}, &models.OrderItems{}, &models.Table{})
 
 	Database = DbInstance{Db: db}
 	return db, nil
