@@ -83,6 +83,11 @@ func GetItems(c *fiber.Ctx) error {
 
 	database.Database.Db.Find(&Items)
 
+	// Tambahkan URL gambar ke objek JSON yang dikirim sebagai respons
+	for i := range Items {
+		Items[i].Image = c.BaseURL() + "/admin/images/" + Items[i].Image
+	}
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Success Get Items",
 		"data":    Items,
@@ -122,13 +127,65 @@ func UpdateItem(c *fiber.Ctx) error {
 		})
 	}
 
-	errors := database.Database.Db.Model(&Item).Where("id = ?", c.Params("id")).Updates(Item)
+	id := c.Query("id")
 
-	if errors.Error != nil {
+	updates := make(map[string]interface{})
+
+	if Item.Name != "" {
+		updates["name"] = Item.Name
+	}
+
+	if Item.Image != "" {
+		file, err := c.FormFile("Image") // ambil file dari form-data
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "Bad Request",
+			})
+		}
+
+		// merubah filename menjadi unik item + extensi
+		file.Filename = helper.GenerateFileName(file.Filename)
+
+		// simpan file ke folder uploads
+		if err := c.SaveFile(file, "./image/"+file.Filename); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Internal Server Error at SaveFile",
+			})
+		}
+		updates["image"] = file.Filename
+	}
+
+	if Item.Description != "" {
+		updates["description"] = Item.Description
+	}
+
+	if Item.Price != 0 {
+		updates["price"] = Item.Price
+	}
+
+	if Item.Stock != 0 {
+		updates["stock"] = Item.Stock
+	}
+
+	if Item.CategoryID != 0 {
+		updates["category_id"] = Item.CategoryID
+	}
+
+	updates["updated_at"] = time.Now()
+
+	result := database.Database.Db.Model(&Item).Where("id = ?", id).Updates(Item)
+
+	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
 		})
 	}
+
+	// mengambil data yang sudah diupdate
+	database.Database.Db.Where("id = ?", id).Find(&Item)
+
+	// Tambahkan URL gambar ke objek JSON yang dikirim sebagai respons
+	Item.Image = c.BaseURL() + "/admin/images/" + Item.Image
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Success Update Items",
