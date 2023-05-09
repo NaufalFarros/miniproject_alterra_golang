@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/NaufalFarros/miniproject_alterra_golang/database"
@@ -8,6 +9,13 @@ import (
 	"github.com/NaufalFarros/miniproject_alterra_golang/models"
 	"github.com/gofiber/fiber/v2"
 )
+
+type Category struct {
+	ID        uint      `json:"id"`
+	Name      string    `json:"name" validate:"required"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
 
 func CreateCategory(c *fiber.Ctx) error {
 
@@ -25,8 +33,8 @@ func CreateCategory(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(errors)
 	}
 
-	Category.CreatedAt = time.Now()
-	Category.UpdatedAt = time.Now()
+	Category.Created_at = time.Now()
+	Category.Updated_at = time.Now()
 
 	// save to database
 
@@ -62,9 +70,11 @@ func GetCategories(c *fiber.Ctx) error {
 }
 
 func GetCategory(c *fiber.Ctx) error {
-	var Category = models.Category{}
+	var Category Category
+	id := c.Query("id")
+	// get one data
 
-	result := database.Database.Db.Where("id = ?", c.Params("id")).First(&Category)
+	result := database.Database.Db.Where("id = ?", id).Find(&Category)
 
 	if result.Error != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -80,20 +90,24 @@ func GetCategory(c *fiber.Ctx) error {
 }
 
 func UpdateCategory(c *fiber.Ctx) error {
-	var Category = models.Category{}
-
-	result := database.Database.Db.Where("id = ?", c.Params("id")).First(&Category)
-
-	if result.Error != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Category Not Found",
-		})
-	}
+	var Category Category
 
 	if err := c.BodyParser(&Category); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Bad Request",
 		})
+	}
+	// get ID from URL params and set to Category.ID
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid ID",
+		})
+	}
+
+	Category.ID = uint(id)
+	updates := map[string]interface{}{
+		"name": Category.Name,
 	}
 
 	// cek validasi
@@ -106,7 +120,7 @@ func UpdateCategory(c *fiber.Ctx) error {
 
 	// save to database
 
-	result = database.Database.Db.Save(&Category)
+	result := database.Database.Db.Model(&Category).Where("id = ?", id).Updates(updates)
 
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

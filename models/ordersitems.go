@@ -16,7 +16,6 @@ type OrderItems struct {
 	SubTotal       int       `json:"sub_total"`
 	Quantity_total int       `json:"quantity_total"`
 	Total_price    int       `json:"total_price"`
-	Status_order   string    `json:"status_order" default:"pending" validate:"required"`
 	OrdersID       int       `json:"orders_id"`
 	Orders         Orders    `gorm:"foreignKey:OrdersID"`
 	Created_at     time.Time `json:"created_at" gorm:"autoCreateTime"`

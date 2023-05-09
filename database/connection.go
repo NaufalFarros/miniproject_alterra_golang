@@ -40,3 +40,16 @@ func DBConnect() (*gorm.DB, error) {
 	Database = DbInstance{Db: db}
 	return db, nil
 }
+func DisconnectDB() error {
+	sqlDB, err := Database.Db.DB()
+	if err != nil {
+		return err
+	}
+
+	err = sqlDB.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

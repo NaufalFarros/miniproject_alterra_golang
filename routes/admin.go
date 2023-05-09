@@ -13,23 +13,7 @@ func AdminRoutes(app *fiber.App) {
 	app.Post("/login", controllers.Login)
 	app.Post("/register", controllers.Register)
 	app.Post("/logout", controllers.Logout)
-
-	authAdmin := app.Group("/admin")
-	authAdmin.Use(middleware.AuthorizeAdmin)
-	authAdmin.Get("/profile", controllers.GetUsers)
-	authAdmin.Post("/category", controllers.CreateCategory)
-	authAdmin.Get("/category", controllers.GetCategories)
-	authAdmin.Get("/category/:id", controllers.GetCategory)
-	authAdmin.Put("/category/:id", controllers.UpdateCategory)
-	authAdmin.Delete("/category/:id", controllers.DeleteCategory)
-
-	authAdmin.Get("/items", controllers.GetItems)
-	authAdmin.Post("/item", controllers.CreateItem)
-	authAdmin.Get("/item", controllers.GetItem)
-	authAdmin.Put("/item", controllers.UpdateItem)
-	authAdmin.Delete("/item/:id", controllers.DeleteItem)
-
-	authAdmin.Get("/images/:imageName", func(c *fiber.Ctx) error {
+	app.Get("/images/:imageName", func(c *fiber.Ctx) error {
 		imageName := c.Params("imageName")
 		imagePath := "./image/" + imageName
 		fmt.Println("Ianmge Path :", imagePath)
@@ -40,6 +24,24 @@ func AdminRoutes(app *fiber.App) {
 		}
 		return c.SendFile(imagePath)
 	})
+
+	authAdmin := app.Group("/admin")
+	authAdmin.Use(middleware.AuthorizeAdmin)
+	authAdmin.Get("/profile", controllers.GetUsers)
+
+	authAdmin.Post("/category", controllers.CreateCategory)
+	authAdmin.Get("/categories", controllers.GetCategories)
+	authAdmin.Get("/category", controllers.GetCategory)
+	authAdmin.Put("/category/:id", controllers.UpdateCategory)
+	authAdmin.Delete("/category/:id", controllers.DeleteCategory)
+
+	authAdmin.Get("/items", controllers.GetItems)
+	authAdmin.Post("/item", controllers.CreateItem)
+	authAdmin.Get("/item", controllers.GetItem)
+	authAdmin.Put("/item/:id", controllers.UpdateItem)
+	authAdmin.Delete("/item/:id", controllers.DeleteItem)
+
+	authAdmin.Get("/orders", controllers.GetAllOrdersUsers)
 
 	authUsers := app.Group("/users")
 	authUsers.Use(middleware.AuthorizeUser)
