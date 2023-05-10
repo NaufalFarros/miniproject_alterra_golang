@@ -14,7 +14,7 @@ type Items struct {
 	Stock       int       `json:"stock" validate:"required"`
 	Image       string    `json:"image" validate:"required"`
 	CategoryID  int       `json:"category_id" validate:"required"`
-	Category    Category  `gorm:"foreignKey:CategoryID"`
+	Category    Category  `gorm:"foreignKey:CategoryID" validate:"-"`
 	Created_at  time.Time `json:"created_at" gorm:"autoCreateTime"`
 	Updated_at  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }

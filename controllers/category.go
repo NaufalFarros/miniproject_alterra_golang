@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/NaufalFarros/miniproject_alterra_golang/database"
@@ -8,6 +9,11 @@ import (
 	"github.com/NaufalFarros/miniproject_alterra_golang/models"
 	"github.com/gofiber/fiber/v2"
 )
+
+type Category struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name" validate:"required"`
+}
 
 func CreateCategory(c *fiber.Ctx) error {
 
@@ -19,16 +25,13 @@ func CreateCategory(c *fiber.Ctx) error {
 		})
 	}
 
-	// cek validasi
 	errors := helper.ValidationStruct(c, Category)
 	if errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(errors)
 	}
 
-	Category.CreatedAt = time.Now()
-	Category.UpdatedAt = time.Now()
-
-	// save to database
+	Category.Created_at = time.Now()
+	Category.Updated_at = time.Now()
 
 	result := database.Database.Db.Create(&Category)
 
@@ -62,9 +65,10 @@ func GetCategories(c *fiber.Ctx) error {
 }
 
 func GetCategory(c *fiber.Ctx) error {
-	var Category = models.Category{}
+	var Category Category
+	id := c.Query("id")
 
-	result := database.Database.Db.Where("id = ?", c.Params("id")).First(&Category)
+	result := database.Database.Db.Where("id = ?", id).Find(&Category)
 
 	if result.Error != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -80,15 +84,7 @@ func GetCategory(c *fiber.Ctx) error {
 }
 
 func UpdateCategory(c *fiber.Ctx) error {
-	var Category = models.Category{}
-
-	result := database.Database.Db.Where("id = ?", c.Params("id")).First(&Category)
-
-	if result.Error != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Category Not Found",
-		})
-	}
+	var Category Category
 
 	if err := c.BodyParser(&Category); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -96,17 +92,24 @@ func UpdateCategory(c *fiber.Ctx) error {
 		})
 	}
 
-	// cek validasi
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid ID",
+		})
+	}
+
+	Category.ID = uint(id)
+	updates := map[string]interface{}{
+		"name": Category.Name,
+	}
+
 	errors := helper.ValidationStruct(c, Category)
 	if errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(errors)
 	}
 
-	Category.UpdatedAt = time.Now()
-
-	// save to database
-
-	result = database.Database.Db.Save(&Category)
+	result := database.Database.Db.Model(&Category).Where("id = ?", id).Updates(updates)
 
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

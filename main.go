@@ -8,10 +8,7 @@ import (
 
 func main() {
 	app := fiber.New()
-
 	routes.AdminRoutes(app)
-	routes.UsersRoutes(app)
 	database.DBConnect()
-
 	app.Listen(":3000")
 }

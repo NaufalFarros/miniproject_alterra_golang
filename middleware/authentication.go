@@ -20,134 +20,114 @@ func getSecretKey() []byte {
 
 func AuthorizeUser(c *fiber.Ctx) error {
 
-	// Get the JWT token from the Authorization header
 	authHeader := c.Get("Authorization")
 	if authHeader == "" {
-		return errors.New("Missing Authorization header")
+		return errors.New("missing Authorization header")
 	}
 	tokenString := authHeader[7:]
 
-	// remove "Bearer " prefix
 	tokenString = strings.ReplaceAll(tokenString, "Bearer ", "")
 
-	// parse token
 	token, err := jwt.ParseWithClaims(tokenString, &config.JWTClaim{}, func(token *jwt.Token) (interface{}, error) {
 		return config.JWT_KEY, nil
 	})
 
-	// check token validity
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": "Unauthorized",
+			"message": "unauthorized",
 		})
 	}
 
-	// Get the "roles" claim from the token
 	claims, ok := token.Claims.(*config.JWTClaim)
 	if !ok || !token.Valid {
-		return errors.New("Invalid token claims")
+		return errors.New("invalid token claims")
 	}
 	role := claims.Roles
 	if role == "" {
-		return errors.New("Roles claim is missing or invalid")
+		return errors.New("roles claim is missing or invalid")
 	}
 
-	// Check if the user has the "user" role
 	hasUserRole := false
 	if role == "user" {
 		hasUserRole = true
 	}
 
 	if !hasUserRole {
-		return errors.New("Unauthorized access")
+		return errors.New("unauthorized access")
 	}
-	// Set the user ID as a context value
 	userID := claims.UserID
 	c.Locals("userID", userID)
 
-	// User is authorized, call next middleware
 	return c.Next()
 
 }
 
 func AuthorizeAdmin(c *fiber.Ctx) error {
 
-	// Get the JWT token from the Authorization header
 	authHeader := c.Get("Authorization")
 	if authHeader == "" {
-		return errors.New("Missing Authorization header")
+		return errors.New("missing Authorization header")
 	}
 	tokenString := authHeader[7:]
 
-	// remove "Bearer " prefix
 	tokenString = strings.ReplaceAll(tokenString, "Bearer ", "")
 
-	// parse token
 	token, err := jwt.ParseWithClaims(tokenString, &config.JWTClaim{}, func(token *jwt.Token) (interface{}, error) {
 		return config.JWT_KEY, nil
 	})
 
-	// check token validity
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "Unauthorized",
 		})
 	}
 
-	// Get the "roles" claim from the token
 	claims, ok := token.Claims.(*config.JWTClaim)
 	if !ok || !token.Valid {
-		return errors.New("Invalid token claims")
+		return errors.New("invalid token claims")
 	}
 	role := claims.Roles
 	if role == "" {
-		return errors.New("Roles claim is missing or invalid")
+		return errors.New("roles claim is missing or invalid")
 	}
 
-	// Check if the user has the "admin" role
 	hasAdminRole := false
 	if role == "admin" {
 		hasAdminRole = true
 	}
 
 	if !hasAdminRole {
-		return errors.New("Unauthorized access")
+		return errors.New("unauthorized access")
 	}
 
-	// User is authorized, call next middleware
 	return c.Next()
 
 }
 
 func GetUsersFromToken(c *fiber.Ctx) (string, error) {
-	// Get the JWT token from the Authorization header
 	authHeader := c.Get("Authorization")
 	if authHeader == "" {
-		return "", errors.New("Missing Authorization header")
+		return "", errors.New("missing Authorization header")
 	}
 	tokenString := authHeader[7:]
 
-	// Remove "Bearer " prefix
 	tokenString = strings.ReplaceAll(tokenString, "Bearer ", "")
 
-	// Parse token
 	token, err := jwt.ParseWithClaims(tokenString, &config.JWTClaim{}, func(token *jwt.Token) (interface{}, error) {
 		return config.JWT_KEY, nil
 	})
 
-	// Check token validity
 	if err != nil {
-		return "", errors.New("Invalid token")
+		return "", errors.New("invalid token")
 	}
 
-	// Get the "sub" claim from the token
 	claims, ok := token.Claims.(*config.JWTClaim)
 	if !ok || !token.Valid {
-		return "", errors.New("Invalid token claims")
+		return "", errors.New("invalid token claims")
 	}
 	userID := claims.Subject
 	if userID == "" {
-		return "", errors.New("User ID claim is missing or invalid")
+		return "", errors.New("user ID claim is missing or invalid")
 	}
 
 	return userID, nil
