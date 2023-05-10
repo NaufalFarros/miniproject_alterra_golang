@@ -13,6 +13,7 @@ func AdminRoutes(app *fiber.App) {
 	app.Post("/login", controllers.Login)
 	app.Post("/register", controllers.Register)
 	app.Post("/logout", controllers.Logout)
+	app.Get("/items", controllers.GetItems, middleware.AuthorizeAdmin)
 	app.Get("/images/:imageName", func(c *fiber.Ctx) error {
 		imageName := c.Params("imageName")
 		imagePath := "./image/" + imageName
@@ -39,7 +40,6 @@ func AdminRoutes(app *fiber.App) {
 	authAdmin.Put("/category/:id", controllers.UpdateCategory)
 	authAdmin.Delete("/category/:id", controllers.DeleteCategory)
 
-	authAdmin.Get("/items", controllers.GetItems)
 	authAdmin.Post("/item", controllers.CreateItem)
 	authAdmin.Get("/item", controllers.GetItem)
 	authAdmin.Put("/item/:id", controllers.UpdateItem)
@@ -50,7 +50,6 @@ func AdminRoutes(app *fiber.App) {
 
 	authUsers := app.Group("/users")
 	authUsers.Use(middleware.AuthorizeUser)
-	authUsers.Get("/item", controllers.GetUsers)
 	authUsers.Post("/booking", controllers.CreateBookings)
 	authUsers.Post("/booking-items", controllers.CreateBookingsItems)
 	authUsers.Post("/booking-items-min", controllers.CreateBookingsItemsMin)

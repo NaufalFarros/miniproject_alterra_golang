@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/NaufalFarros/miniproject_alterra_golang/database"
@@ -11,13 +10,15 @@ import (
 )
 
 type Category struct {
-	ID   uint   `json:"id"`
-	Name string `json:"name" validate:"required"`
+	ID         uint      `json:"id"`
+	Name       string    `json:"name" validate:"required"`
+	Created_at time.Time `json:"created_at" gorm:"autoCreateTime"`
+	Updated_at time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 func CreateCategory(c *fiber.Ctx) error {
 
-	var Category = models.Category{}
+	var Category Category
 
 	if err := c.BodyParser(&Category); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -29,9 +30,6 @@ func CreateCategory(c *fiber.Ctx) error {
 	if errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(errors)
 	}
-
-	Category.Created_at = time.Now()
-	Category.Updated_at = time.Now()
 
 	result := database.Database.Db.Create(&Category)
 
@@ -48,13 +46,20 @@ func CreateCategory(c *fiber.Ctx) error {
 }
 
 func GetCategories(c *fiber.Ctx) error {
-	var Categories []models.Category
+	var Categories []Category
 
 	result := database.Database.Db.Find(&Categories)
 
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
+		})
+	}
+
+	check := database.Database.Db.Find(&Categories).RowsAffected
+	if check == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "No Data Category",
 		})
 	}
 
@@ -65,14 +70,21 @@ func GetCategories(c *fiber.Ctx) error {
 }
 
 func GetCategory(c *fiber.Ctx) error {
-	var Category Category
 	id := c.Query("id")
+	var Category Category
 
 	result := database.Database.Db.Where("id = ?", id).Find(&Category)
 
 	if result.Error != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"message": "Category Not Found",
+		})
+	}
+
+	check := database.Database.Db.Where("id = ?", id).Find(&Category).RowsAffected
+	if check == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "No Data Category",
 		})
 	}
 
@@ -84,32 +96,16 @@ func GetCategory(c *fiber.Ctx) error {
 }
 
 func UpdateCategory(c *fiber.Ctx) error {
-	var Category Category
+	id := c.Params("id")
+	var Cat models.Category
 
-	if err := c.BodyParser(&Category); err != nil {
+	if err := c.BodyParser(&Cat); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Bad Request",
 		})
 	}
 
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid ID",
-		})
-	}
-
-	Category.ID = uint(id)
-	updates := map[string]interface{}{
-		"name": Category.Name,
-	}
-
-	errors := helper.ValidationStruct(c, Category)
-	if errors != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errors)
-	}
-
-	result := database.Database.Db.Model(&Category).Where("id = ?", id).Updates(updates)
+	result := database.Database.Db.Where("id = ?", id).Model(&Cat).Updates(&Cat)
 
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -117,9 +113,16 @@ func UpdateCategory(c *fiber.Ctx) error {
 		})
 	}
 
+	// set response
+	var Res = Category{}
+	Res.ID = Cat.ID
+	Res.Name = Cat.Name
+	Res.Created_at = Cat.Created_at
+	Res.Updated_at = Cat.Updated_at
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Success Update Category",
-		"data":    Category,
+		"data":    Res,
 	})
 }
 
