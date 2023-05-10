@@ -50,6 +50,7 @@ func AdminRoutes(app *fiber.App) {
 
 	authUsers := app.Group("/users")
 	authUsers.Use(middleware.AuthorizeUser)
+	authUsers.Get("/item", controllers.GetUsers)
 	authUsers.Post("/booking", controllers.CreateBookings)
 	authUsers.Post("/booking-items", controllers.CreateBookingsItems)
 	authUsers.Post("/booking-items-min", controllers.CreateBookingsItemsMin)
