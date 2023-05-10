@@ -50,7 +50,7 @@ func CreateItem(c *fiber.Ctx) error {
 			"message": "Bad Request",
 		})
 	}
-	file, err := c.FormFile("Image") 
+	file, err := c.FormFile("Image")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Bad Request",
@@ -67,7 +67,6 @@ func CreateItem(c *fiber.Ctx) error {
 	fmt.Println(items)
 	items.Name = c.FormValue("Name")
 	items.Image = file.Filename
-
 
 	items.CreatedAt = time.Now()
 	items.UpdatedAt = time.Now()
@@ -99,7 +98,20 @@ func CreateItem(c *fiber.Ctx) error {
 
 func GetItems(c *fiber.Ctx) error {
 	var items []models.Items
-	database.Database.Db.Preload("Category").Find(&items)
+	if err := database.Database.Db.Preload("Category").Find(&items).Error; err != nil {
+		// Tangani kesalahan saat mengambil data item
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to get items",
+			"error":   err.Error(),
+		})
+	}
+	// cek jika data masih tidak ada
+	check := database.Database.Db.Preload("Category").Find(&items).RowsAffected
+	if check == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "Data not found",
+		})
+	}
 
 	for i := range items {
 		items[i].Image = c.BaseURL() + "/images/" + items[i].Image
@@ -111,6 +123,7 @@ func GetItems(c *fiber.Ctx) error {
 		itemsResponse = append(itemsResponse, itemResponse)
 	}
 
+	// Kirim respons dengan data item yang berhasil diambil
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Success Get Items",
 		"data":    itemsResponse,
