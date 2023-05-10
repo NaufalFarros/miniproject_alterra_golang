@@ -29,6 +29,10 @@ func AdminRoutes(app *fiber.App) {
 	authAdmin.Use(middleware.AuthorizeAdmin)
 	authAdmin.Get("/profile", controllers.GetUsers)
 
+	authAdmin.Get("/tables", controllers.GetTables)
+	authAdmin.Post("/table", controllers.CreateTable)
+	authAdmin.Put("/table/:id", controllers.UpdateTable)
+
 	authAdmin.Post("/category", controllers.CreateCategory)
 	authAdmin.Get("/categories", controllers.GetCategories)
 	authAdmin.Get("/category", controllers.GetCategory)
@@ -42,6 +46,7 @@ func AdminRoutes(app *fiber.App) {
 	authAdmin.Delete("/item/:id", controllers.DeleteItem)
 
 	authAdmin.Get("/orders", controllers.GetAllOrdersUsers)
+	authAdmin.Put("/orders/:id", controllers.UpdateOrderStatus)
 
 	authUsers := app.Group("/users")
 	authUsers.Use(middleware.AuthorizeUser)

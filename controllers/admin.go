@@ -2,54 +2,62 @@ package controllers
 
 import (
 	"github.com/NaufalFarros/miniproject_alterra_golang/database"
+	"github.com/NaufalFarros/miniproject_alterra_golang/models"
 	"github.com/gofiber/fiber/v2"
 )
 
-type CustomAllOrdersResponse struct {
+type UserResponse struct {
 	ID                   uint                 `json:"id"`
-	NameCustomer         string               `json:"name_customer"`
-	Phone                string               `json:"phone"`
-	TableNumber          int                  `json:"table_number"`
-	Status_Order         string               `json:"status_order"`
-	UsersId              uint                 `json:"users_id"`
-	CustomeResponseUsers CustomeResponseUsers `json:"custome_response_users"`
-	CustomeResponseTable CustomeResponseTable `json:"custome_response_table"`
-	CustomeRoles         CustomeRoles         `json:"custome_roles"`
-	CustomeUsersOrders   CustomeUsersOrders   `json:"custome_users_orders"`
-	CustomeOrdersItems   CustomeOrdersItems   `json:"custome_orders_items"`
-	CustomeCategory      CustomeCategory      `json:"custome_category"`
+	Email                string               `json:"email"`
+	Name                 string               `json:"name"`
+	CustomeResponseTable CustomeResponseTable `json:"table"`
+	CustomeRoles         CustomeRoles         `json:"role"`
+}
+
+type UsersResponse struct {
+	Data    []UserResponse `json:"data"`
+	Message string         `json:"message"`
+}
+
+type CustomAllOrdersResponse struct {
+	ID           uint                 `json:"id"`
+	NameCustomer string               `json:"name_customer"`
+	Phone        string               `json:"phone"`
+	Status_Order string               `json:"status_order"`
+	Users        CustomeResponseUsers `json:"users"`
+	Order        CustomeOrdersItems   `json:"orders_items"`
 }
 
 type CustomeResponseUsers struct {
-	ID      uint   `json:"id"`
-	Name    string `json:"name"`
-	Email   string `json:"email"`
-	TableID int    `json:"table_id"`
+	ID                   uint                 `json:"id"`
+	Name                 string               `json:"name"`
+	Email                string               `json:"email"`
+	CustomeResponseTable CustomeResponseTable `json:"table"`
+	CustomeRoles         CustomeRoles         `json:"roles"`
 }
 
 type CustomeResponseTable struct {
-	ID          uint `json:"id"`
-	TableNumber int  `json:"table_number"`
+	ID          uint   `json:"id"`
+	TableNumber string `json:"table_number"`
 }
 
-type CustomeUsersOrders struct {
+type CustomeOrdersItems struct {
 	ID            uint `json:"id"`
-	ItemID        int  `json:"item_id"`
-	UserID        int  `json:"user_id"`
+	CustomeItems  `json:"items"`
 	Quantity      int  `json:"quantity"`
 	SubTotal      int  `json:"sub_total"`
 	QuantityTotal int  `json:"quantity_total"`
 	TotalPrice    int  `json:"total_price"`
-	OrdersID      int  `json:"orders_id"`
+	OrdersID      uint `json:"orders_id"`
 }
 
-type CustomeOrdersItems struct {
-	ID         uint   `json:"id"`
-	Name       string `json:"name"`
-	Price      int    `json:"price"`
-	Stock      int    `json:"stock"`
-	Image      string `json:"image"`
-	CategoryID int    `json:"category_id"`
+type CustomeItems struct {
+	ID              uint            `json:"id"`
+	Name            string          `json:"name"`
+	Price           int             `json:"price"`
+	Stock           int             `json:"stock"`
+	Image           string          `json:"image"`
+	CustomeCategory CustomeCategory `json:"category"`
 }
 
 type CustomeCategory struct {
@@ -62,54 +70,115 @@ type CustomeRoles struct {
 	Name string `json:"name"`
 }
 
-func GetAllOrdersUsers(c *fiber.Ctx) error {
-	var customAllOrdersResponse []CustomAllOrdersResponse
+func GetUsers(c *fiber.Ctx) error {
+	var users []models.User
+	result := database.Database.Db.Preload("Role").Preload("Table").Find(&users)
 
-	// SQL query
-	err := database.Database.Db.Table("order_items").
-		Select(`
-			order_items.id,
-			users.name AS name_customer,
-			users.phone,
-			tables.number AS table_number,
-			orders.status AS status_order,
-			users.id AS users_id,
-			orders.id AS orders_id,
-			orders.id AS orders_id,
-			orders.quantity AS quantity,
-			orders.sub_total AS sub_total,
-			orders.quantity_total AS quantity_total,
-			orders.total_price AS total_price,
-			items.id AS item_id,
-			items.name AS item_name,
-			items.price AS item_price,
-			items.stock AS item_stock,
-			items.image AS item_image,
-			categories.id AS category_id,
-			categories.name AS category_name,
-			user_roles.id AS role_id,
-			user_roles.name AS role_name
-		`).
-		Joins(`
-			JOIN orders ON orders.id = order_items.orders_id
-			JOIN users ON users.id = orders.user_id
-			JOIN tables ON tables.table_number = orders.table_number
-			JOIN roles AS user_roles ON roles.id = users.role_id
-			JOIN order_items ON order_items.order_id = orders.id
-			JOIN items ON items.id = order_items.item_id
-			JOIN categories ON categories.id = items.category_id
-		`).
-		Scan(&customAllOrdersResponse).Error
+	if result.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal Server Error",
+		})
+	}
+
+	userResponse := []UserResponse{}
+	for _, user := range users {
+		usersResponse := userToResponse(user)
+		userResponse = append(userResponse, usersResponse)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Success",
+		"data":    userResponse,
+	})
+}
+
+func GetAllOrdersUsers(c *fiber.Ctx) error {
+	var ordersItems []models.OrderItems
+	var customAllOrdersResponse []CustomAllOrdersResponse
+ 
+	err := database.Database.Db.
+		Preload("Orders.User").
+		Preload("Orders.User.Table").
+		Preload("Orders.User.Role").
+		Preload("Item.Category").
+		Find(&ordersItems).Error
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Internal Server Error",
+			"message": "error",
+			"error":   err.Error(),
+		})
+	}
+
+	for _, orderItem := range ordersItems {
+		customAllOrdersResponse = append(customAllOrdersResponse, CustomAllOrdersResponse{
+			ID:           orderItem.Orders.ID,
+			NameCustomer: orderItem.Orders.Name_customer,
+			Phone:        orderItem.Orders.Phone,
+			Status_Order: orderItem.Orders.Status_order,
+			Users: CustomeResponseUsers{
+				ID:    orderItem.Orders.User.ID,
+				Name:  orderItem.Orders.User.Name,
+				Email: orderItem.Orders.User.Email,
+				CustomeResponseTable: CustomeResponseTable{
+					ID:          orderItem.Orders.User.Table.ID,
+					TableNumber: orderItem.Orders.User.Table.Table_number,
+				},
+				CustomeRoles: CustomeRoles{
+					ID:   orderItem.Orders.User.Role.ID,
+					Name: orderItem.Orders.User.Role.Name,
+				},
+			},
+
+			Order: CustomeOrdersItems{
+				ID: orderItem.ID,
+				CustomeItems: CustomeItems{
+					ID:    orderItem.Item.ID,
+					Name:  orderItem.Item.Name,
+					Price: orderItem.Item.Price,
+					Stock: orderItem.Item.Stock,
+					Image: orderItem.Item.Image,
+					CustomeCategory: CustomeCategory{
+						ID:   orderItem.Item.Category.ID,
+						Name: orderItem.Item.Category.Name,
+					},
+				},
+				Quantity:      orderItem.Quantity,
+				SubTotal:      orderItem.SubTotal,
+				QuantityTotal: orderItem.Quantity_total,
+				TotalPrice:    orderItem.Total_price,
+				OrdersID:      orderItem.Orders.ID,
+			},
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "success",
+		"data":    customAllOrdersResponse,
+	})
+
+}
+
+func UpdateOrderStatus(c *fiber.Ctx) error {
+	orderID := c.Params("id")
+
+	var order Orders
+	if err := database.Database.Db.First(&order, orderID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "Order not found",
+		})
+	}
+
+	order.Status_order = "payment_success"
+	if err := database.Database.Db.Save(&order).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to update order status",
 			"error":   err.Error(),
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "Success",
-		"data":    customAllOrdersResponse,
+		"message": "Order status updated successfully",
+		"data":    order,
 	})
 }

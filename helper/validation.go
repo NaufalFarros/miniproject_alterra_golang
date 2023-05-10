@@ -19,7 +19,6 @@ var validate = validator.New()
 func ValidationStruct(c *fiber.Ctx, model interface{}) []*ErrorResponse {
 	var errors []*ErrorResponse
 	err := validate.Struct(model)
-	// cek value yang dikrim dari client
 	if err != nil {
 		for _, err := range err.(validator.ValidationErrors) {
 			errors = append(errors, &ErrorResponse{

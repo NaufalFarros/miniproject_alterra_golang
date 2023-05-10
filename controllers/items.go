@@ -20,8 +20,6 @@ type ItemResponse struct {
 	Stock       int             `json:"stock" validate:"required"`
 	CategoryID  int             `json:"category_id" validate:"required"`
 	Category    models.Category `json:"category"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
 type ItemsResponse struct {
@@ -52,42 +50,32 @@ func CreateItem(c *fiber.Ctx) error {
 			"message": "Bad Request",
 		})
 	}
-	file, err := c.FormFile("Image") // ambil file dari form-data
+	file, err := c.FormFile("Image") 
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Bad Request",
 		})
 	}
 
-	// merubah filename menjadi unik item + extensi
 	file.Filename = helper.GenerateFileName(file.Filename)
 
-	// simpan file ke folder uploads
 	if err := c.SaveFile(file, "./image/"+file.Filename); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error at SaveFile",
 		})
 	}
-	//DEBUG data yang diinput
 	fmt.Println(items)
 	items.Name = c.FormValue("Name")
 	items.Image = file.Filename
-	// fmt.Println(items.Image)
-	// fmt.Println(items.Name)
-	// fmt.Println(items.Price)
-	// fmt.Println(items.Stock)
-	// fmt.Println(items.Description)
-	// fmt.Println(items.CategoryID)
+
 
 	items.CreatedAt = time.Now()
 	items.UpdatedAt = time.Now()
-	// cek validasi
 	errors := helper.ValidationStruct(c, items)
 	if errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(errors)
 	}
 
-	// cek ketika category id tidak ada di database
 	var category models.Category
 	checkCatID := database.Database.Db.Where("id = ?", items.CategoryID).First(&category)
 	if checkCatID.Error != nil {
@@ -96,7 +84,6 @@ func CreateItem(c *fiber.Ctx) error {
 		})
 	}
 
-	// save to database
 	result := database.Database.Db.Create(&items)
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -114,7 +101,6 @@ func GetItems(c *fiber.Ctx) error {
 	var items []models.Items
 	database.Database.Db.Preload("Category").Find(&items)
 
-	// Tambahkan URL gambar ke objek JSON yang dikirim sebagai respons
 	for i := range items {
 		items[i].Image = c.BaseURL() + "/images/" + items[i].Image
 	}
@@ -193,17 +179,14 @@ func UpdateItem(c *fiber.Ctx) error {
 			})
 		}
 
-		// merubah filename menjadi unik item + extensi
 		file.Filename = helper.GenerateFileName(file.Filename)
 
-		// sebelum update, delete old file
 		if err := os.Remove("./image/" + item.Image); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "Internal Server Error at Remove old Image",
 			})
 		}
 
-		// simpan file ke folder uploads
 		if err := c.SaveFile(file, "./image/"+file.Filename); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "Internal Server Error at SaveFile",
@@ -238,10 +221,8 @@ func UpdateItem(c *fiber.Ctx) error {
 		})
 	}
 
-	// mengambil data yang sudah diupdate
 	database.Database.Db.Preload("Category").Where("id = ?", id).Find(&item)
 
-	// Tambahkan URL gambar ke objek JSON yang dikirim sebagai respons
 	item.Image = c.BaseURL() + "/images/" + item.Image
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -253,7 +234,6 @@ func UpdateItem(c *fiber.Ctx) error {
 func DeleteItem(c *fiber.Ctx) error {
 	var Item = models.Items{}
 
-	//  sebelum delete, hapus image pada folder
 	checkID := database.Database.Db.Where("id = ?", c.Params("id")).First(&Item)
 	if checkID.Error != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

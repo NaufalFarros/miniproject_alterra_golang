@@ -11,10 +11,8 @@ import (
 )
 
 type Category struct {
-	ID        uint      `json:"id"`
-	Name      string    `json:"name" validate:"required"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID   uint   `json:"id"`
+	Name string `json:"name" validate:"required"`
 }
 
 func CreateCategory(c *fiber.Ctx) error {
@@ -27,7 +25,6 @@ func CreateCategory(c *fiber.Ctx) error {
 		})
 	}
 
-	// cek validasi
 	errors := helper.ValidationStruct(c, Category)
 	if errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(errors)
@@ -35,8 +32,6 @@ func CreateCategory(c *fiber.Ctx) error {
 
 	Category.Created_at = time.Now()
 	Category.Updated_at = time.Now()
-
-	// save to database
 
 	result := database.Database.Db.Create(&Category)
 
@@ -72,7 +67,6 @@ func GetCategories(c *fiber.Ctx) error {
 func GetCategory(c *fiber.Ctx) error {
 	var Category Category
 	id := c.Query("id")
-	// get one data
 
 	result := database.Database.Db.Where("id = ?", id).Find(&Category)
 
@@ -97,7 +91,7 @@ func UpdateCategory(c *fiber.Ctx) error {
 			"message": "Bad Request",
 		})
 	}
-	// get ID from URL params and set to Category.ID
+
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -110,15 +104,10 @@ func UpdateCategory(c *fiber.Ctx) error {
 		"name": Category.Name,
 	}
 
-	// cek validasi
 	errors := helper.ValidationStruct(c, Category)
 	if errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(errors)
 	}
-
-	Category.UpdatedAt = time.Now()
-
-	// save to database
 
 	result := database.Database.Db.Model(&Category).Where("id = ?", id).Updates(updates)
 
