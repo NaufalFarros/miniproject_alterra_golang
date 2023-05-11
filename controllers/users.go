@@ -28,7 +28,7 @@ type CustomAllOrdersResponse struct {
 	Phone        string               `json:"phone"`
 	Status_Order string               `json:"status_order"`
 	Users        CustomeResponseUsers `json:"users"`
-	Order        CustomeOrdersItems   `json:"orders_items"`
+	Order        []CustomeOrdersItems `json:"orders_items"`
 }
 
 type CustomeResponseUsers struct {
@@ -46,12 +46,12 @@ type CustomeResponseTable struct {
 
 type CustomeOrdersItems struct {
 	ID            uint `json:"id"`
-	CustomeItems  `json:"items"`
 	Quantity      int  `json:"quantity"`
 	SubTotal      int  `json:"sub_total"`
 	QuantityTotal int  `json:"quantity_total"`
 	TotalPrice    int  `json:"total_price"`
 	OrdersID      uint `json:"orders_id"`
+	CustomeItems  `json:"items"`
 }
 
 type CustomeItems struct {
@@ -231,15 +231,17 @@ func GetUsers(c *fiber.Ctx) error {
 }
 
 func GetAllOrdersUsers(c *fiber.Ctx) error {
-	var ordersItems []models.OrderItems
+	var orders []models.Orders
 	var customAllOrdersResponse []CustomAllOrdersResponse
 
 	err := database.Database.Db.
-		Preload("Orders.User").
-		Preload("Orders.User.Table").
-		Preload("Orders.User.Role").
-		Preload("Item.Category").
-		Find(&ordersItems).Error
+		Preload("User").
+		Preload("User.Table").
+		Preload("User.Role").
+		Preload("OrderItems").
+		Preload("OrderItems.Item").
+		Preload("OrderItems.Item.Category").
+		Find(&orders).Error
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -248,28 +250,29 @@ func GetAllOrdersUsers(c *fiber.Ctx) error {
 		})
 	}
 
-	for _, orderItem := range ordersItems {
-		customAllOrdersResponse = append(customAllOrdersResponse, CustomAllOrdersResponse{
-			ID:           orderItem.Orders.ID,
-			NameCustomer: orderItem.Orders.Name_customer,
-			Phone:        orderItem.Orders.Phone,
-			Status_Order: orderItem.Orders.Status_order,
-			Users: CustomeResponseUsers{
-				ID:    orderItem.Orders.User.ID,
-				Name:  orderItem.Orders.User.Name,
-				Email: orderItem.Orders.User.Email,
-				CustomeResponseTable: CustomeResponseTable{
-					ID:          orderItem.Orders.User.Table.ID,
-					TableNumber: orderItem.Orders.User.Table.Table_number,
-				},
-				CustomeRoles: CustomeRoles{
-					ID:   orderItem.Orders.User.Role.ID,
-					Name: orderItem.Orders.User.Role.Name,
-				},
-			},
+	for _, order := range orders {
+		var orderItems []models.OrderItems
+		err := database.Database.Db.
+			Where("orders_id = ?", order.ID).
+			Preload("Item").
+			Preload("Item.Category").
+			Find(&orderItems).Error
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "error",
+				"error":   err.Error(),
+			})
+		}
 
-			Order: CustomeOrdersItems{
-				ID: orderItem.ID,
+		var customOrderItems []CustomeOrdersItems
+		for _, orderItem := range orderItems {
+			customOrderItem := CustomeOrdersItems{
+				ID:            orderItem.ID,
+				Quantity:      orderItem.Quantity,
+				SubTotal:      orderItem.SubTotal,
+				QuantityTotal: orderItem.Quantity_total,
+				TotalPrice:    orderItem.Total_price,
+				OrdersID:      orderItem.OrdersID,
 				CustomeItems: CustomeItems{
 					ID:    orderItem.Item.ID,
 					Name:  orderItem.Item.Name,
@@ -281,12 +284,38 @@ func GetAllOrdersUsers(c *fiber.Ctx) error {
 						Name: orderItem.Item.Category.Name,
 					},
 				},
-				Quantity:      orderItem.Quantity,
-				SubTotal:      orderItem.SubTotal,
-				QuantityTotal: orderItem.Quantity_total,
-				TotalPrice:    orderItem.Total_price,
-				OrdersID:      orderItem.Orders.ID,
+			}
+			customOrderItems = append(customOrderItems, customOrderItem)
+		}
+
+		customOrder := CustomAllOrdersResponse{
+			ID:           order.ID,
+			NameCustomer: order.Name_customer,
+			Phone:        order.Phone,
+			Status_Order: order.Status_order,
+			Users: CustomeResponseUsers{
+				ID:    order.User.ID,
+				Name:  order.User.Name,
+				Email: order.User.Email,
+				CustomeResponseTable: CustomeResponseTable{
+					ID:          order.User.Table.ID,
+					TableNumber: order.User.Table.Table_number,
+				},
+				CustomeRoles: CustomeRoles{
+					ID:   order.User.Role.ID,
+					Name: order.User.Role.Name,
+				},
 			},
+			Order: customOrderItems,
+		}
+
+		customAllOrdersResponse = append(customAllOrdersResponse, customOrder)
+	}
+
+	// cek apakah ada data
+	if len(customAllOrdersResponse) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "Data not found",
 		})
 	}
 
@@ -294,7 +323,6 @@ func GetAllOrdersUsers(c *fiber.Ctx) error {
 		"message": "success",
 		"data":    customAllOrdersResponse,
 	})
-
 }
 
 func UpdateOrderStatus(c *fiber.Ctx) error {

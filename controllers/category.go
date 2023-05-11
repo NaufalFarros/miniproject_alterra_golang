@@ -9,16 +9,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type Category struct {
-	ID         uint      `json:"id"`
-	Name       string    `json:"name" validate:"required"`
-	Created_at time.Time `json:"created_at" gorm:"autoCreateTime"`
-	Updated_at time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+type UpdateCategoryResponse struct {
+	ID        uint      `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func CreateCategory(c *fiber.Ctx) error {
 
-	var Category Category
+	var Category models.Category
 
 	if err := c.BodyParser(&Category); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -39,14 +39,21 @@ func CreateCategory(c *fiber.Ctx) error {
 		})
 	}
 
+	response := UpdateCategoryResponse{
+		ID:        Category.ID,
+		Name:      Category.Name,
+		CreatedAt: Category.Created_at,
+		UpdatedAt: Category.Updated_at,
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"message": "Success",
-		"data":    Category,
+		"data":    response,
 	})
 }
 
 func GetCategories(c *fiber.Ctx) error {
-	var Categories []Category
+	var Categories []models.Category
 
 	result := database.Database.Db.Find(&Categories)
 
@@ -63,15 +70,26 @@ func GetCategories(c *fiber.Ctx) error {
 		})
 	}
 
+	// update response struct
+	var response []UpdateCategoryResponse
+	for _, Category := range Categories {
+		response = append(response, UpdateCategoryResponse{
+			ID:        Category.ID,
+			Name:      Category.Name,
+			CreatedAt: Category.Created_at,
+			UpdatedAt: Category.Updated_at,
+		})
+	}
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Success",
-		"data":    Categories,
+		"data":    response,
 	})
 }
 
 func GetCategory(c *fiber.Ctx) error {
 	id := c.Query("id")
-	var Category Category
+	var Category models.Category
 
 	result := database.Database.Db.Where("id = ?", id).Find(&Category)
 
@@ -88,41 +106,66 @@ func GetCategory(c *fiber.Ctx) error {
 		})
 	}
 
+	response := UpdateCategoryResponse{
+		ID:        Category.ID,
+		Name:      Category.Name,
+		CreatedAt: Category.Created_at,
+		UpdatedAt: Category.Updated_at,
+	}
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Success",
-		"data":    Category,
+		"data":    response,
 	})
 
 }
 
 func UpdateCategory(c *fiber.Ctx) error {
-	id := c.Params("id")
-	var Cat models.Category
-
-	if err := c.BodyParser(&Cat); err != nil {
+	var cat models.Category
+	if err := c.BodyParser(&cat); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Bad Request",
 		})
 	}
 
-	result := database.Database.Db.Where("id = ?", id).Model(&Cat).Updates(&Cat)
+	id := c.Params("id")
 
+	// Cek validasi data kategori
+	if err := helper.ValidationStruct(c, cat); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Validation Error",
+			"error":   err,
+		})
+	}
+
+	// Lakukan pembaruan data kategori ke database
+	result := database.Database.Db.Model(&models.Category{}).Where("id = ?", id).Updates(&cat)
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
 		})
 	}
 
-	// set response
-	var Res = Category{}
-	Res.ID = Cat.ID
-	Res.Name = Cat.Name
-	Res.Created_at = Cat.Created_at
-	Res.Updated_at = Cat.Updated_at
+	// Ambil kategori yang berhasil diperbarui dari database
+	var updatedCat models.Category
+	if err := database.Database.Db.Where("id = ?", id).First(&updatedCat).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal Server Error",
+		})
+	}
 
+	// Buat respons dengan data kategori yang berhasil diperbarui
+	response := UpdateCategoryResponse{
+		ID:        updatedCat.ID,
+		Name:      updatedCat.Name,
+		CreatedAt: updatedCat.Created_at,
+		UpdatedAt: updatedCat.Updated_at,
+	}
+
+	// Kirim respons dengan data kategori yang berhasil diperbarui
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Success Update Category",
-		"data":    Res,
+		"data":    response,
 	})
 }
 

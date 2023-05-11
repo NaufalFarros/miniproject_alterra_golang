@@ -11,9 +11,8 @@ import (
 
 func AdminRoutes(app *fiber.App) {
 	app.Post("/login", controllers.Login)
-	app.Post("/register", controllers.Register)
 	app.Post("/logout", controllers.Logout)
-	app.Get("/items", controllers.GetItems, middleware.AuthorizeAdmin)
+	app.Get("/items", controllers.GetItems, middleware.AuthorizeAdmin, middleware.AuthorizeUser)
 	app.Get("/images/:imageName", func(c *fiber.Ctx) error {
 		imageName := c.Params("imageName")
 		imagePath := "./image/" + imageName
@@ -28,7 +27,8 @@ func AdminRoutes(app *fiber.App) {
 
 	authAdmin := app.Group("/admin")
 	authAdmin.Use(middleware.AuthorizeAdmin)
-	authAdmin.Get("/profile", controllers.GetUsers)
+	authAdmin.Post("/register", controllers.Register)
+	authAdmin.Get("/users", controllers.GetUsers)
 
 	authAdmin.Get("/tables", controllers.GetTables)
 	authAdmin.Post("/table", controllers.CreateTable)
