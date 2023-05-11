@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -12,14 +11,15 @@ import (
 )
 
 type ItemResponse struct {
-	ID          uint            `json:"id"`
-	Name        string          `json:"name" validate:"required"`
-	Image       string          `json:"image" validate:"required"`
-	Description string          `json:"description" validate:"required"`
-	Price       int             `json:"price" validate:"required"`
-	Stock       int             `json:"stock" validate:"required"`
-	CategoryID  int             `json:"category_id" validate:"required"`
-	Category    models.Category `json:"category"`
+	ID                     uint                   `json:"id"`
+	Name                   string                 `json:"name" validate:"required"`
+	Image                  string                 `json:"image" validate:"required"`
+	Description            string                 `json:"description" validate:"required"`
+	Price                  int                    `json:"price" validate:"required"`
+	Stock                  int                    `json:"stock" validate:"required"`
+	UpdateCategoryResponse UpdateCategoryResponse `json:"category"`
+	CreatedAt              time.Time              `json:"created_at"`
+	UpdatedAt              time.Time              `json:"updated_at"`
 }
 
 type ItemsResponse struct {
@@ -35,25 +35,39 @@ func itemToResponse(item models.Items) ItemResponse {
 		Description: item.Description,
 		Price:       item.Price,
 		Stock:       item.Stock,
-		CategoryID:  item.CategoryID,
-		Category:    item.Category,
+		UpdateCategoryResponse: UpdateCategoryResponse{
+			ID:        item.Category.ID,
+			Name:      item.Category.Name,
+			CreatedAt: item.Category.Created_at,
+			UpdatedAt: item.Category.Updated_at,
+		},
+		CreatedAt: item.Created_at,
+		UpdatedAt: item.Updated_at,
 	}
 
 	return itemResponse
 }
 
 func CreateItem(c *fiber.Ctx) error {
-	var items = models.Items{}
+	var item models.Items
 
-	if err := c.BodyParser(&items); err != nil {
+	if err := c.BodyParser(&item); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Bad Request",
 		})
 	}
+
 	file, err := c.FormFile("Image")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Bad Request",
+			"message": "Bad Request image",
+		})
+	}
+
+	var category models.Category
+	if err := database.Database.Db.Where("id = ?", item.CategoryID).First(&category).Error; err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Category ID not found",
 		})
 	}
 
@@ -64,35 +78,36 @@ func CreateItem(c *fiber.Ctx) error {
 			"message": "Internal Server Error at SaveFile",
 		})
 	}
-	fmt.Println(items)
-	items.Name = c.FormValue("Name")
-	items.Image = file.Filename
 
-	items.CreatedAt = time.Now()
-	items.UpdatedAt = time.Now()
-	errors := helper.ValidationStruct(c, items)
+	item.Name = c.FormValue("Name")
+	item.Image = file.Filename
+	item.CreatedAt = time.Now()
+	item.UpdatedAt = time.Now()
+
+	errors := helper.ValidationStruct(c, item)
 	if errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(errors)
 	}
 
-	var category models.Category
-	checkCatID := database.Database.Db.Where("id = ?", items.CategoryID).First(&category)
-	if checkCatID.Error != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Category ID not found",
-		})
-	}
-
-	result := database.Database.Db.Create(&items)
+	result := database.Database.Db.Create(&item)
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
 		})
 	}
 
+	// Ambil kategori terkait dari database
+	if err := database.Database.Db.Model(&item).Association("Category").Find(&item.Category); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal Server Error",
+		})
+	}
+
+	response := itemToResponse(item)
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"message": "Success Create items",
-		"data":    items,
+		"data":    response,
 	})
 }
 
@@ -135,11 +150,11 @@ func GetItem(c *fiber.Ctx) error {
 	id := c.Query("id")
 	// fmt.Println(id)
 
-	errors := database.Database.Db.Preload("Category").Where("id = ?", id).Find(&Item)
+	errors := database.Database.Db.Preload("Category").Where("id = ?", id).First(&Item)
 
 	if errors.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Internal Server Error",
+			"message": "No Data Found",
 		})
 	}
 
@@ -171,29 +186,22 @@ func UpdateItem(c *fiber.Ctx) error {
 
 	id := c.Params("id")
 
-	checkID := database.Database.Db.Where("id = ?", id).First(&item)
-	if checkID.Error != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "ID not found",
-		})
-	}
-
 	updates := make(map[string]interface{})
 
 	if item.Name != "" {
 		updates["name"] = item.Name
 	}
 
-	if item.Image != "" {
-		file, err := c.FormFile("Image")
-		if err != nil {
+	// Pengecekan apakah ada file gambar baru
+	file, err := c.FormFile("Image")
+	if err == nil {
+		file.Filename = helper.GenerateFileName(file.Filename)
+		checkimage := database.Database.Db.Where("id = ?", id).First(&item)
+		if checkimage.Error != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"message": "Bad Request",
+				"message": "iamge not found",
 			})
 		}
-
-		file.Filename = helper.GenerateFileName(file.Filename)
-
 		if err := os.Remove("./image/" + item.Image); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "Internal Server Error at Remove old Image",
@@ -226,6 +234,15 @@ func UpdateItem(c *fiber.Ctx) error {
 
 	updates["updated_at"] = time.Now()
 
+	// validasi
+
+	checkID := database.Database.Db.Where("id = ?", id).First(&item)
+	if checkID.Error != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "ID not found",
+		})
+	}
+
 	result := database.Database.Db.Model(&models.Items{}).Where("id = ?", id).Updates(updates)
 
 	if result.Error != nil {
@@ -238,9 +255,12 @@ func UpdateItem(c *fiber.Ctx) error {
 
 	item.Image = c.BaseURL() + "/images/" + item.Image
 
+	// update response
+	response := itemToResponse(item)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Success Update Item",
-		"data":    []models.Items{item},
+		"data":    response,
 	})
 }
 

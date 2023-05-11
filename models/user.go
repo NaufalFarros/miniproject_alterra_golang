@@ -13,7 +13,7 @@ type User struct {
 	Password   string    `json:"password" validate:"required,min=6"`
 	TableID    int       `json:"table_id" validate:"required"`
 	Table      Table     `gorm:"foreignKey:TableID" validate:"-"`
-	RoleID     int       `json:"role_id" validate:"required"`
+	RoleID     int       `json:"role_id"`
 	Role       Roles     `gorm:"foreignKey:RoleID" validate:"-"`
 	Created_at time.Time `json:"created_at" gorm:"autoCreateTime"`
 	Updated_at time.Time `json:"updated_at" gorm:"autoUpdateTime"`
